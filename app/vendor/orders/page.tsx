@@ -17,11 +17,23 @@ export default function VendorOrdersPage() {
       return
     }
 
-    const userData = localStorage.getItem('userData')
-    if (!userData) {
-      router.push('/onboarding')
-      return
+    // Fetch user data from database
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user/fetch')
+        const data = await response.json()
+        
+        if (!response.ok || !data.user) {
+          router.push('/onboarding')
+          return
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+        router.push('/onboarding')
+      }
     }
+
+    fetchUserData()
   }, [isSignedIn, router])
 
   const vendorOrders = orders.filter(o => o.vendorId === user?.id)

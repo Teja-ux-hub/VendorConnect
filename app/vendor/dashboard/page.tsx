@@ -21,19 +21,29 @@ export default function VendorDashboard() {
       return
     }
 
-    // Load user data
-    const userData = localStorage.getItem('userData')
-    if (userData) {
-      const parsed = JSON.parse(userData)
-      if (parsed.userType !== 'vendor') {
-        router.push('/seller/dashboard')
-        return
+    // Fetch user data from database
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user/fetch')
+        const data = await response.json()
+        
+        if (response.ok && data.user) {
+          if (data.user.userType !== 'vendor') {
+            router.push('/seller/dashboard')
+            return
+          }
+          setUser(data.user)
+          loadNearbyShops(data.user.location)
+        } else {
+          router.push('/onboarding')
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+        router.push('/onboarding')
       }
-      setUser(parsed)
-      loadNearbyShops(parsed.location)
-    } else {
-      router.push('/onboarding')
     }
+
+    fetchUserData()
   }, [isSignedIn, router, setUser])
 
   const loadNearbyShops = (location: { lat: number; lng: number }) => {

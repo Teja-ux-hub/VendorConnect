@@ -21,20 +21,30 @@ export default function SellerDashboard() {
       return
     }
 
-    // Load user data
-    const userData = localStorage.getItem('userData')
-    if (userData) {
-      const parsed = JSON.parse(userData)
-      if (parsed.userType !== 'seller') {
-        router.push('/vendor/dashboard')
-        return
+    // Fetch user data from database
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user/fetch')
+        const data = await response.json()
+        
+        if (response.ok && data.user) {
+          if (data.user.userType !== 'seller') {
+            router.push('/vendor/dashboard')
+            return
+          }
+          setUser(data.user)
+          loadProducts(data.user.id)
+          loadOrders(data.user.id)
+        } else {
+          router.push('/onboarding')
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+        router.push('/onboarding')
       }
-      setUser(parsed)
-      loadProducts(parsed.id)
-      loadOrders(parsed.id)
-    } else {
-      router.push('/onboarding')
     }
+
+    fetchUserData()
   }, [isSignedIn, router, setUser])
 
   const loadProducts = (sellerId: string) => {

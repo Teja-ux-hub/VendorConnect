@@ -97,10 +97,24 @@ export default function OnboardingPage() {
       const response = await axios.post("/api/user/create", payload);
 
       if (response.status === 200) {
-        toast.success("Profile saved successfully! 🎉");
-        router.push(
-          userType === "vendor" ? "/vendor/dashboard" : "/seller/dashboard"
-        );
+        // Fetch the actual user data from database
+        const fetchResponse = await axios.get("/api/user/fetch");
+        
+        if (fetchResponse.status === 200 && fetchResponse.data.user) {
+          const userData = fetchResponse.data.user;
+          localStorage.setItem('userData', JSON.stringify(userData));
+          
+          toast.success("Profile saved successfully! 🎉");
+          
+          // Navigate based on actual user type from database
+          setTimeout(() => {
+            router.push(
+              userData.userType === "vendor" ? "/vendor/dashboard" : "/seller/dashboard"
+            );
+          }, 100);
+        } else {
+          toast.error("Profile created but unable to load user data.");
+        }
       } else {
         toast.error("Something went wrong. Please login again.");
       }

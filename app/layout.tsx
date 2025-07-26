@@ -45,21 +45,7 @@ export default function RootLayout({
             src="https://unpkg.com/lenis@1.1.3/dist/lenis.min.js"
             defer
           />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-          const cfg = {
-            duration: 0.4,        
-            lerp: 0.6,           
-            easing: t => 1 - Math.pow(1 - t, 4), 
-          };
 
-          const lenis = new Lenis(cfg);
-          function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
-          requestAnimationFrame(raf);
-              `,
-            }}
-          />
         </body>
       </html>
     </ClerkProvider>
