@@ -1,6 +1,11 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import { ClerkProvider } from "@clerk/nextjs";
+import Navbar from "@/components/Navbar";   // ← direct import
+import Footer from "@/components/Footer";   // ← direct import
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,16 +24,44 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <link
+            rel="stylesheet"
+            href="https://unpkg.com/lenis@1.1.3/dist/lenis.css"
+          />
+        </head>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-gray-50`}
+        >
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <Toaster position="top-right" />
+          <script
+            src="https://unpkg.com/lenis@1.1.3/dist/lenis.min.js"
+            defer
+          />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+          const cfg = {
+            duration: 0.4,        
+            lerp: 0.6,           
+            easing: t => 1 - Math.pow(1 - t, 4), 
+          };
+
+          const lenis = new Lenis(cfg);
+          function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+          requestAnimationFrame(raf);
+              `,
+            }}
+          />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
