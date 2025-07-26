@@ -14,7 +14,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.push('/onboarding')
+      router.push('/vendor/dashboard')
     }
   }, [isSignedIn, router])
 
