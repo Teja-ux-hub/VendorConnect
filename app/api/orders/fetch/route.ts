@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       orders = await Order.find({ vendorId: userId })
         .populate('supplierId', 'shopName location phone')
         .sort({ createdAt: -1 });
-    } else if (userType === 'supplier') {
+    } else if (userType === 'seller') {
       orders = await Order.find({ supplierId: userId })
         .populate('vendorId', 'name location phone')
         .sort({ createdAt: -1 });

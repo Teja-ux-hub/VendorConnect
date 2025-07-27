@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Store, Package, Bell, Plus, Edit, Trash2, Phone, MapPin, Clock, CheckCircle, XCircle, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import axios from 'axios'
+import { Supplier } from '@/models/SupplierModel'
 
 export default function SellerDashboard() {
   const { isSignedIn } = useAuth()
@@ -51,12 +52,32 @@ export default function SellerDashboard() {
     fetchUserData()
   }, [isSignedIn, router])
 
-  const loadProducts = async (sellerId: string) => {
+  // const loadProducts = async (supplierId: string) => {
+  //   try {
+  //     const response = await fetch(`/api/products/fetch?type=seller&userId=${supplierId}`)
+  //     const data = await response.json()
+  //     if (response.ok) {
+  //       setProducts(data.products || [])
+  //     } else {
+  //       console.error('Error loading products:', data.error)
+  //     }
+  //   } catch (err) {
+  //     console.error('Failed to load products:', err)
+  //   }
+  // }
+
+  const loadProducts = async (supplierId: string) => {
     try {
-      const response = await fetch(`/api/products/fetch?type=seller&userId=${sellerId}`)
+      const response = await fetch(`/api/products/fetch?type=seller&userId=${supplierId}`)
       const data = await response.json()
       if (response.ok) {
-        setProducts(data.products || [])
+        // Normalize the id field here
+        const normalized = (data.products || []).map((product: any) => ({
+          ...product,
+          id: product._id,
+        }))
+        setProducts(normalized)
+        console.log('Products:', normalized);
       } else {
         console.error('Error loading products:', data.error)
       }
@@ -64,13 +85,27 @@ export default function SellerDashboard() {
       console.error('Failed to load products:', err)
     }
   }
+  
 
-  const loadOrders = async (userId: string) => {
+  const loadOrders = async (supplierId: string) => {
     try {
-      const response = await fetch(`/api/orders/fetch?userType=seller&userId=${userId}`)
+      
+      const response = await fetch(`/api/orders/fetch?userId=${supplierId}&userType=seller`)
       const data = await response.json()
       if (response.ok) {
-        setOrders(data.orders || [])
+        // Transform dates and normalize fields for frontend
+        setOrders((data.orders || []).map((order: any) => ({
+          ...order,
+          id: order._id || order.id,
+          products: order.products || order.items || [],
+          totalAmount: order.totalAmount || order.totalPrice || 0,
+          createdAt: order.createdAt ? new Date(order.createdAt) : undefined,
+          updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined,
+          vendorLocation: typeof order.vendorLocation === 'string' ? { address: order.vendorLocation } : order.vendorLocation,
+          // fallback for customerPhone/location if needed
+          customerPhone: order.vendorPhone || order.customerPhone || '',
+          customerLocation: order.vendorLocation?.address || order.customerLocation || '',
+        })))
       }
     } catch (error) {
       console.error('Error loading orders:', error)
@@ -195,11 +230,11 @@ export default function SellerDashboard() {
                 </div>
               ) : (
                 orders.map((order) => (
-                  <div key={order._id} className="border rounded-lg p-4">
+                  <div key={order.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-medium text-gray-900">{order.items?.[0]?.name || 'Order'}</h4>
-                        <p className="text-sm text-gray-600">₹{order.totalAmount} • {order.items?.[0]?.quantity || 1} items</p>
+                        <h4 className="font-medium text-gray-900">{order.products?.[0]?.name || 'Order'}</h4>
+                        <p className="text-sm text-gray-600">₹{order.totalAmount} • {order.products?.[0]?.quantity || 1} items</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         (order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -213,13 +248,13 @@ export default function SellerDashboard() {
                     {order.status === 'pending' && (
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleOrderStatus(order._id, 'accepted')}
+                          onClick={() => handleOrderStatus(order.id, 'accepted')}
                           className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded text-sm"
                         >
                           <CheckCircle className="h-4 w-4 inline mr-1" /> Accept
                         </button>
                         <button
-                          onClick={() => handleOrderStatus(order._id, 'rejected')}
+                          onClick={() => handleOrderStatus(order.id, 'rejected')}
                           className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
                         >
                           <XCircle className="h-4 w-4 inline mr-1" /> Reject
@@ -230,7 +265,7 @@ export default function SellerDashboard() {
                     <div className="space-y-2">
                       <h4 className="font-medium">Items:</h4>
                       {order.products.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-sm">
+                        <div key={item.productId ? `${item.productId}-${idx}` : idx} className="flex justify-between text-sm">
                           <span>{item.name} x {item.quantity}</span>
                           <span>₹{item.price * item.quantity}</span>
                         </div>

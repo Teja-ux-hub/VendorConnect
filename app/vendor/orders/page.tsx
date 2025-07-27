@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 interface Order {
   id: string;
   vendorId: string;
-  sellerId: string;
+  supplierId: string;
   products: Array<{ productId: string; name: string; quantity: number; price: number }>;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled' | 'rejected' | 'delivered';
   totalAmount: number;

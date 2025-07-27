@@ -13,13 +13,13 @@ export async function POST(request: NextRequest) {
       products,
       vendorLocation,
       vendorPhone,
-      preferredSupplierId,
+      supplierId, // <-- require this
     } = body;
 
     // Validate required fields
-    if (!vendorId || !products || !products.length) {
+    if (!vendorId || !products || !products.length || !supplierId) {
       return NextResponse.json(
-        { error: 'Missing required fields: vendorId, products' },
+        { error: 'Missing required fields: vendorId, products, supplierId' },
         { status: 400 }
       );
     }
@@ -28,20 +28,6 @@ export async function POST(request: NextRequest) {
     const totalAmount = products.reduce((sum: number, product: any) => 
       sum + (product.price * product.quantity), 0
     );
-
-    // Find supplier
-    let supplierId = preferredSupplierId;
-
-    if (!supplierId) {
-      const supplier = await Supplier.findOne({}).limit(1);
-      if (!supplier) {
-        return NextResponse.json(
-          { error: 'No suppliers available for quick order' },
-          { status: 400 }
-        );
-      }
-      supplierId = supplier._id;
-    }
 
     // Transform products for storage
     const transformedProducts = products.map((product: any) => ({

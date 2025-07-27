@@ -1,26 +1,53 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { useStoree } from '@/lib/store'
 import { ArrowLeft, Phone, MapPin, Clock, CheckCircle, XCircle, Package, Copy, AlertCircle } from 'lucide-react'
 
 export default function SellerOrdersPage() {
   const { isSignedIn, userId } = useAuth()
   const router = useRouter()
-  const { user, orders, updateOrderStatus, fetchOrders } = useStoree()
+  const [orders, setOrders] = useState<any[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isSignedIn) {
       router.push('/')
       return
     }
-
-    if (user?.id) {
-      fetchOrders(user.id, 'supplier')
+    const fetchUserAndOrders = async () => {
+      setLoading(true)
+      try {
+        const userRes = await fetch('/api/user/fetch')
+        const userData = await userRes.json()
+        if (userRes.ok && userData.user) {
+          setUser(userData.user)
+          const ordersRes = await fetch(`/api/orders/fetch?userType=seller&userId=${userData.user.id}`)
+          const ordersData = await ordersRes.json()
+          if (ordersRes.ok) {
+            setOrders((ordersData.orders || []).map((order: any) => ({
+              ...order,
+              id: order._id || order.id,
+              products: order.products || order.items || [],
+              totalPrice: order.totalPrice || order.totalAmount || 0,
+              createdAt: order.createdAt ? new Date(order.createdAt) : undefined,
+              updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined,
+              vendorLocation: typeof order.vendorLocation === 'string' ? order.vendorLocation : order.vendorLocation?.address || '',
+            })))
+          }
+        } else {
+          router.push('/onboarding')
+        }
+      } catch (err) {
+        console.error('Error loading seller orders:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [user, isSignedIn, router, fetchOrders])
+    fetchUserAndOrders()
+  }, [isSignedIn, router])
 
   const sellerOrders = orders.filter(o => o.supplierId === user?.id)
   const pendingOrders = sellerOrders.filter(o => o.status === 'pending')
@@ -29,15 +56,15 @@ export default function SellerOrdersPage() {
   const rejectedOrders = sellerOrders.filter(o => o.status === 'cancelled' || o.status === 'rejected')
 
   const handleAcceptOrder = (orderId: string) => {
-    updateOrderStatus(orderId, 'accepted')
+    // updateOrderStatus(orderId, 'accepted') // This function is removed from useStoree
   }
 
   const handleRejectOrder = (orderId: string) => {
-    updateOrderStatus(orderId, 'cancelled')
+    // updateOrderStatus(orderId, 'cancelled') // This function is removed from useStoree
   }
 
   const handleCompleteOrder = (orderId: string) => {
-    updateOrderStatus(orderId, 'completed')
+    // updateOrderStatus(orderId, 'completed') // This function is removed from useStoree
   }
 
   const copyToClipboard = (text: string, type: string) => {
@@ -163,8 +190,8 @@ export default function SellerOrdersPage() {
                           <div>
                             <h4 className="text-sm font-medium text-gray-700 mb-1">Items:</h4>
                             <div className="space-y-1">
-                              {order.products.map((item, idx) => (
-                                <div key={idx} className="flex justify-between text-sm">
+                              {order.products.map((item: any, idx: number) => (
+                                <div key={item.productId ? `${item.productId}-${idx}` : idx} className="flex justify-between text-sm">
                                   <span className="text-gray-600">{item.name} × {item.quantity}</span>
                                   <span className="font-medium">₹{item.price * item.quantity}</span>
                                 </div>
@@ -238,8 +265,8 @@ export default function SellerOrdersPage() {
                           <div>
                             <h4 className="text-sm font-medium text-gray-700 mb-1">Items:</h4>
                             <div className="space-y-1">
-                              {order.products.map((item, idx) => (
-                                <div key={idx} className="flex justify-between text-sm">
+                              {order.products.map((item: any, idx: number) => (
+                                <div key={item.productId ? `${item.productId}-${idx}` : idx} className="flex justify-between text-sm">
                                   <span className="text-gray-600">{item.name} × {item.quantity}</span>
                                   <span className="font-medium">₹{item.price * item.quantity}</span>
                                 </div>

@@ -33,7 +33,7 @@ interface User {
 interface Order {
   id: string;
   vendorId: string;
-  sellerId: string;
+  supplierId: string;
   products: Array<{ productId: string; name: string; quantity: number; price: number }>;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled' | 'rejected' | 'delivered';
   totalAmount: number;
@@ -227,7 +227,7 @@ export default function VendorDashboard() {
 
     const orderData = {
       vendorId: user.id,
-      sellerId: shop.id,
+      supplierId: shop.id,
       products: orderProducts,
       totalAmount,
       vendorLocation: user.location,
@@ -253,13 +253,13 @@ export default function VendorDashboard() {
       return;
     }
 
-    // Get all items from cart across all shops
-    const allCartItems: any[] = [];
-    
+    // Get all items from cart across all shops, grouped by shop
+    const shopCartMap: Record<string, any[]> = {};
     nearbyShops.forEach(shop => {
       shop.products.forEach(product => {
         if (cart[product.id] > 0) {
-          allCartItems.push({
+          if (!shopCartMap[shop.id]) shopCartMap[shop.id] = [];
+          shopCartMap[shop.id].push({
             productId: product.id,
             name: product.name,
             quantity: cart[product.id],
@@ -269,7 +269,8 @@ export default function VendorDashboard() {
       });
     });
 
-    if (!allCartItems.length) {
+    const shopIds = Object.keys(shopCartMap);
+    if (!shopIds.length) {
       toast.error('Your cart is empty. Add items first.');
       return;
     }
@@ -277,32 +278,32 @@ export default function VendorDashboard() {
     setIsPlacingOrder(true);
 
     try {
-      const res = await fetch('/api/orders/quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vendorId: user.id,
-          products: allCartItems,
-          vendorLocation: user.location,
-          vendorPhone: user.phoneNumber,
-        }),
-      });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to place quick order');
+      // Place a quick order for each shop (supplier)
+      for (const shopId of shopIds) {
+        const products = shopCartMap[shopId];
+        const res = await fetch('/api/orders/quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vendorId: user.id,
+            products,
+            supplierId: shopId, // <-- always send supplierId
+            vendorLocation: user.location,
+            vendorPhone: user.phoneNumber,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to place quick order');
+        }
+        const quickOrderData = {
+          ...data.order,
+          createdAt: new Date(data.order.createdAt)
+        };
+        setOrders((prev) => [quickOrderData, ...prev]);
       }
-
-      const quickOrderData = {
-        ...data.order,
-        createdAt: new Date(data.order.createdAt)
-      };
-
-      setOrders((prev) => [quickOrderData, ...prev]);
       setCart({});
-      toast.success('Quick order placed! Supplier will contact you soon.');
-      
+      toast.success('Quick order(s) placed! Supplier(s) will contact you soon.');
     } catch (error) {
       console.error('Quick order error:', error);
       toast.error('Failed to place quick order. Please try again.');

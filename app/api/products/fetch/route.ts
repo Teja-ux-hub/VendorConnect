@@ -3,7 +3,7 @@ import { Product } from '@/models/ProductModel';
 import { connectDB } from '@/lib/mongoDB';
 
 /**
- * GET /api/products?type=seller&userId=<sellerId>
+ * GET /api/products?type=seller&userId=<supplierId>
  * GET /api/products?type=vendor
  */
 export async function GET(req: Request) {
