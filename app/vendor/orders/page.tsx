@@ -65,37 +65,56 @@ export default function VendorOrdersPage() {
     }
   }, [isSignedIn, router])
 
-  const fetchOrders = async (vendorId: string, status: string = 'all', page: number = 1) => {
+  const fetchOrders = async (vendorId: string, status?: string, page = 1) => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams({
-        vendorId,
-        limit: '20',
-        page: page.toString()
+        userId: vendorId,
+        userType: 'vendor'
       })
-      
-      if (status !== 'all') {
-        params.append('status', status)
-      }
 
-      const response = await fetch(`/api/vendor/orders?${params}`)
+      const response = await fetch(`/api/orders/fetch?${params}`)
       const data = await response.json()
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch orders')
       }
 
+      // Filter orders by status if specified
+      let filteredOrders = data.orders || []
+      if (status && status !== 'all') {
+        filteredOrders = filteredOrders.filter((order: Order) => order.status === status)
+      }
+
       // Transform dates from strings to Date objects
-      const ordersWithDates = data.orders.map((order: any) => ({
+      const ordersWithDates = filteredOrders.map((order: any) => ({
         ...order,
         createdAt: new Date(order.createdAt),
         updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined
       }))
 
-      setOrders(ordersWithDates)
-      setStats(data.stats)
-      setTotalPages(data.pagination.totalPages)
-      setCurrentPage(data.pagination.currentPage)
+      // Calculate stats
+      const stats = {
+        pending: filteredOrders.filter((o: Order) => o.status === 'pending').length,
+        accepted: filteredOrders.filter((o: Order) => o.status === 'accepted').length,
+        completed: filteredOrders.filter((o: Order) => o.status === 'completed').length,
+        rejected: filteredOrders.filter((o: Order) => o.status === 'rejected' || o.status === 'cancelled').length,
+        cancelled: filteredOrders.filter((o: Order) => o.status === 'cancelled').length,
+        totalOrders: filteredOrders.length,
+        totalSpent: filteredOrders.reduce((sum: number, o: Order) => sum + (o.totalAmount || 0), 0)
+      }
+      setStats(stats)
+      
+      // Simple pagination
+      const itemsPerPage = 20
+      const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+      const startIndex = (page - 1) * itemsPerPage
+      const endIndex = startIndex + itemsPerPage
+      const paginatedOrders = ordersWithDates.slice(startIndex, endIndex)
+      
+      setOrders(paginatedOrders)
+      setTotalPages(totalPages)
+      setCurrentPage(page)
       
     } catch (error) {
       console.error('Error fetching orders:', error)

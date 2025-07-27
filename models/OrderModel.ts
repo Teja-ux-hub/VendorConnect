@@ -18,58 +18,39 @@
 //   orderedAt: { type: Date, default: Date.now },
 // }, { timestamps: true })
 
-// export const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema)
-
-
 // models/OrderModel.ts
 import mongoose from 'mongoose'
 
 const OrderSchema = new mongoose.Schema({
   vendorId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', // or 'Vendor' depending on your user model
+    type: String, // Using Clerk user ID as string
     required: true 
   },
   supplierId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', // or 'Supplier' depending on your user model
+    type: String, // Using Clerk user ID as string  
     required: true 
   },
   products: [
     {
       productId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Product', 
+        type: String, 
         required: true 
       },
-      name: { type: String, required: true }, // Store product name for easy access
+      name: { type: String, required: true },
       quantity: { type: Number, required: true },
-      price: { type: Number, required: true }, // Store price at time of order
+      price: { type: Number, required: true },
     }
   ],
   totalPrice: { type: Number, required: true },
-  status: {
-    type: String,
-    enum: ['pending', 'accepted', 'rejected', 'delivered', 'completed', 'cancelled'],
-    default: 'pending'
+  status: { 
+    type: String, 
+    enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled'], 
+    default: 'pending' 
   },
-  
-  // Additional fields for frontend compatibility
-  vendorLocation: {
-    lat: Number,
-    lng: Number,
-    address: String
-  },
-  sellerLocation: {
-    lat: Number,
-    lng: Number,
-    address: String
-  },
-  vendorPhone: String,
-  sellerPhone: String,
+  vendorLocation: { type: String, required: true },
+  vendorPhone: { type: String, required: true },
+  sellerPhone: { type: String },
   isQuickOrder: { type: Boolean, default: false },
-  
-  // Timestamps
   orderedAt: { type: Date, default: Date.now },
   updatedBy: { type: String }, // Track who updated the order last
 }, { 

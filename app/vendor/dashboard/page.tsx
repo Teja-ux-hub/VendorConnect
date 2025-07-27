@@ -68,19 +68,37 @@ export default function VendorDashboard() {
       return;
     }
 
-    const userData = localStorage.getItem('userData');
-    if (userData) {
-      const parsed: User = JSON.parse(userData);
-      if (parsed.userType !== 'vendor') {
-        router.push('/seller/dashboard');
-        return;
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user/fetch');
+        const data = await response.json();
+
+        if (response.ok && data.user) {
+          if (data.user.userType !== 'vendor') {
+            router.push('/seller/dashboard');
+            return;
+          }
+          
+          // Check if user has complete profile
+          if (data.user.name && data.user.phone && data.user.location) {
+            setUser(data.user);
+            fetchNearbyShops(data.user.location);
+            fetchOrders(data.user.id);
+          } else {
+            // Profile incomplete - redirect to onboarding
+            router.push('/onboarding');
+          }
+        } else {
+          // User doesn't exist - redirect to onboarding
+          router.push('/onboarding');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        router.push('/onboarding');
       }
-      setUser(parsed);
-      fetchNearbyShops(parsed.location);
-      fetchOrders(parsed.id);
-    } else {
-      router.push('/onboarding');
-    }
+    };
+
+    fetchUserData();
   }, [isSignedIn, router]);
 
   const fetchNearbyShops = async (location: { lat: number; lng: number }) => {

@@ -13,9 +13,36 @@ export default function HomePage() {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    if (isSignedIn) {
-      router.push('/vendor/dashboard')
+    const checkUserAndRedirect = async () => {
+      if (isSignedIn) {
+        try {
+          const response = await fetch('/api/user/fetch')
+          const data = await response.json()
+          
+          if (response.ok && data.user) {
+            // User exists, check if profile is complete
+            if (data.user.name && data.user.phone && data.user.location) {
+              // Profile complete - redirect to appropriate dashboard
+              const dashboardPath = data.user.userType === "vendor" 
+                ? "/vendor/dashboard" 
+                : "/seller/dashboard"
+              router.push(dashboardPath)
+            } else {
+              // Profile incomplete - redirect to onboarding
+              router.push('/onboarding')
+            }
+          } else {
+            // User doesn't exist - redirect to onboarding
+            router.push('/onboarding')
+          }
+        } catch (error) {
+          console.error('Error checking user:', error)
+          router.push('/onboarding')
+        }
+      }
     }
+    
+    checkUserAndRedirect()
   }, [isSignedIn, router])
 
   useEffect(() => {

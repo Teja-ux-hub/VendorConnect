@@ -41,17 +41,17 @@ export default function OnboardingPage() {
       if (response.status === 200 && response.data.user) {
         const userData = response.data.user;
         
-        // Store user data in localStorage
-        localStorage.setItem('userData', JSON.stringify(userData));
-        
-        // Redirect to appropriate dashboard
-        const dashboardPath = userData.userType === "vendor" 
-          ? "/vendor/dashboard" 
-          : "/seller/dashboard";
-          
-        toast.success("Welcome back! Redirecting to your dashboard...");
-        router.push(dashboardPath);
-        return;
+        // Check if user has complete profile (name, phone, location)
+        if (userData.name && userData.phone && userData.location) {
+          // Redirect to appropriate dashboard based on user type
+          const dashboardPath = userData.userType === "vendor" 
+            ? "/vendor/dashboard" 
+            : "/seller/dashboard";
+            
+          toast.success("Welcome back! Redirecting to your dashboard...");
+          router.push(dashboardPath);
+          return;
+        }
       }
     } catch (error: any) {
       // If user doesn't exist (404) or other error, continue with onboarding

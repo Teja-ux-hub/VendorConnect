@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { Store, Package, Bell, Plus, Edit, Trash2, Phone, MapPin, Clock } from 'lucide-react'
+import { Store, Package, Bell, Plus, Edit, Trash2, Phone, MapPin, Clock, CheckCircle, XCircle, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
@@ -17,6 +17,7 @@ export default function SellerDashboard() {
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [newProduct, setNewProduct] = useState({ name: '', price: 0, quantity: 0 })
   const [editingProduct, setEditingProduct] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // Fetch User + Products + Orders
   useEffect(() => {
@@ -64,36 +65,38 @@ export default function SellerDashboard() {
     }
   }
 
- const loadOrders = async (sellerId: string) => {
-  try {
-    const response = await fetch(`/api/orders/fetch?userId=${sellerId}&userType=supplier`)
-    const data = await response.json()
-    if (response.ok) {
-      setOrders(
-        (data.orders || []).map((o: any) => ({
-          id: o._id,
-          totalAmount: o.totalPrice,
-          status: o.status,
-          vendorLocation: o.vendorId?.location || { address: 'Unknown' },
-          vendorPhone: o.vendorId?.phone || 'N/A',
-          products: o.products.map((p: any) => ({
-            name: p.productId?.name,
-            quantity: p.quantity,
-            price: p.productId?.price
-          })),
-          isQuickOrder: false // Add any flag if needed
-        }))
-      )
-    } else {
-      console.error('Error loading orders:', data.error)
+  const loadOrders = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/orders/fetch?userType=seller&userId=${userId}`)
+      const data = await response.json()
+      if (response.ok) {
+        setOrders(data.orders || [])
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error)
     }
-  } catch (err) {
-    console.error('Failed to load orders:', err)
   }
-}
 
+  const handleOrderStatus = async (orderId: string, status: string) => {
+    try {
+      const response = await fetch('/api/orders/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status })
+      })
+      
+      if (response.ok) {
+        toast.success(`Order ${status} successfully`)
+        loadOrders(user.id)
+      } else {
+        toast.error('Failed to update order status')
+      }
+    } catch (error) {
+      console.error('Error updating order:', error)
+      toast.error('Error updating order')
+    }
+  }
 
-  // Add Product
   const handleAddProduct = async () => {
     if (!newProduct.name || newProduct.price <= 0 || newProduct.quantity < 0) {
       toast.error('Please fill all fields correctly')
@@ -118,7 +121,6 @@ export default function SellerDashboard() {
     }
   }
 
-  // Delete Product
   const handleDeleteProduct = async (productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
@@ -132,43 +134,13 @@ export default function SellerDashboard() {
     }
   }
 
-  // Accept Order
-  const handleAcceptOrder = async (orderId: string) => {
-    try {
-      await axios.patch(`/api/orders/update/${orderId}`, { status: 'accepted' })
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'accepted' } : o))
-      )
-      toast.success('Order accepted! Vendor contact details are now visible.')
-
-      // Play voice notification
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('नया ऑर्डर स्वीकार किया गया')
-        utterance.lang = 'hi-IN'
-        speechSynthesis.speak(utterance)
-      }
-    } catch (err) {
-      console.error('Accept order error:', err)
-      toast.error('Failed to accept order')
-    }
-  }
-
-  // Reject Order
-  const handleRejectOrder = async (orderId: string) => {
-    try {
-      await axios.patch(`/api/orders/update/${orderId}`, { status: 'cancelled' })
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
-      )
-      toast.error('Order rejected')
-    } catch (err) {
-      console.error('Reject order error:', err)
-      toast.error('Failed to reject order')
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard!')
   }
 
   const pendingOrders = orders.filter((o) => o.status === 'pending')
-  const activeOrders = orders.filter((o) => o.status === 'accepted')
+  const acceptedOrders = orders.filter((o) => o.status === 'accepted')
   const completedOrders = orders.filter((o) => o.status === 'completed')
 
   if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
@@ -197,13 +169,6 @@ export default function SellerDashboard() {
                 </span>
               )}
             </div>
-            <button
-              onClick={() => setShowAddProduct(true)}
-              className="btn-primary flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Product</span>
-            </button>
           </div>
         </div>
       </header>
@@ -212,41 +177,55 @@ export default function SellerDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid lg:grid-cols-3 gap-8">
         {/* Left Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Pending Orders */}
-          {pendingOrders.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Bell className="h-5 w-5 mr-2 text-orange-500" />
-                New Orders ({pendingOrders.length})
-              </h2>
-              <div className="space-y-4">
-                {pendingOrders.map((order) => (
-                  <div key={order.id} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+          {/* Orders Management */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Shop Orders</h3>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">{pendingOrders.length} pending</span>
+                <span className="text-sm text-gray-600">{acceptedOrders.length} accepted</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No orders yet</p>
+                </div>
+              ) : (
+                orders.map((order) => (
+                  <div key={order._id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-semibold">Order #{order.id.slice(-4)}</h3>
-                        <p className="text-gray-600">₹{order.totalAmount}</p>
-                        {order.isQuickOrder && (
-                          <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full">
-                            Quick Order 🚀
-                          </span>
-                        )}
+                        <h4 className="font-medium text-gray-900">{order.items?.[0]?.name || 'Order'}</h4>
+                        <p className="text-sm text-gray-600">₹{order.totalAmount} • {order.items?.[0]?.quantity || 1} items</p>
                       </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        (order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                        'bg-red-100 text-red-800')
+                      }`}>
+                        {order.status}
+                      </span>
+                    </div>
+
+                    {order.status === 'pending' && (
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleAcceptOrder(order.id)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                          onClick={() => handleOrderStatus(order._id, 'accepted')}
+                          className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded text-sm"
                         >
-                          Accept
+                          <CheckCircle className="h-4 w-4 inline mr-1" /> Accept
                         </button>
                         <button
-                          onClick={() => handleRejectOrder(order.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium"
+                          onClick={() => handleOrderStatus(order._id, 'rejected')}
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
                         >
-                          Reject
+                          <XCircle className="h-4 w-4 inline mr-1" /> Reject
                         </button>
                       </div>
-                    </div>
+                    )}
 
                     <div className="space-y-2">
                       <h4 className="font-medium">Items:</h4>
@@ -264,18 +243,46 @@ export default function SellerDashboard() {
                         Delivery to: {order.vendorLocation.address}
                       </p>
                     </div>
+                    {order.status === 'accepted' && (
+                      <div className="space-y-2 text-sm pt-3 border-t">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Customer Phone:</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">{order.customerPhone}</span>
+                            <button
+                              onClick={() => copyToClipboard(order.customerPhone)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Customer Location:</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">{order.customerLocation}</span>
+                            <button
+                              onClick={() => copyToClipboard(order.customerLocation)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
+          
 
           {/* Active Orders */}
-          {activeOrders.length > 0 && (
+          {acceptedOrders.length > 0 && (
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Active Orders ({activeOrders.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">Active Orders ({acceptedOrders.length})</h2>
               <div className="space-y-4">
-                {activeOrders.map((order) => (
+                {acceptedOrders.map((order) => (
                   <div key={order.id} className="border border-green-200 rounded-lg p-4 bg-green-50">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -372,7 +379,7 @@ export default function SellerDashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Active Orders</span>
-                <span className="font-semibold">{activeOrders.length}</span>
+                <span className="font-semibold">{acceptedOrders.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Completed</span>
@@ -501,6 +508,7 @@ export default function SellerDashboard() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }
