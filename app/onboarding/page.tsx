@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { MapPin, Phone, User, Truck, Store } from "lucide-react";
+import { MapPin, Phone, User, Truck, Store, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -13,6 +13,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState<"vendor" | "seller" | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(true);
   const [formData, setFormData] = useState({
     fullName: "",
     phoneNumber: "",
@@ -25,8 +26,45 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!isSignedIn) {
       router.push("/");
+      return;
     }
+
+    // Check if user already exists in database
+    checkExistingUser();
   }, [isSignedIn, router]);
+
+  const checkExistingUser = async () => {
+    try {
+      setIsCheckingUser(true);
+      const response = await axios.get("/api/user/fetch");
+      
+      if (response.status === 200 && response.data.user) {
+        const userData = response.data.user;
+        
+        // Store user data in localStorage
+        localStorage.setItem('userData', JSON.stringify(userData));
+        
+        // Redirect to appropriate dashboard
+        const dashboardPath = userData.userType === "vendor" 
+          ? "/vendor/dashboard" 
+          : "/seller/dashboard";
+          
+        toast.success("Welcome back! Redirecting to your dashboard...");
+        router.push(dashboardPath);
+        return;
+      }
+    } catch (error: any) {
+      // If user doesn't exist (404) or other error, continue with onboarding
+      if (error?.response?.status === 404) {
+        console.log("User not found, proceeding with onboarding");
+      } else {
+        console.error("Error checking existing user:", error);
+        toast.error("Error loading user profile. Please try again.");
+      }
+    } finally {
+      setIsCheckingUser(false);
+    }
+  };
 
   const getCurrentLocation = () => {
     setIsGettingLocation(true);
@@ -129,7 +167,19 @@ export default function OnboardingPage() {
     }
   };
 
-  if (!isSignedIn) return null;
+  // Show loading screen while checking if user exists
+  if (!isSignedIn || isCheckingUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-gray-600">
+            {!isSignedIn ? "Checking authentication..." : "Loading your profile..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
