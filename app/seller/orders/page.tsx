@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, MapPin, Clock, CheckCircle, XCircle, Package, Copy, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Clock, CheckCircle, XCircle, Package, Copy, AlertCircle, Map } from 'lucide-react'
 
 export default function SellerOrdersPage() {
   const { isSignedIn, userId } = useAuth()
@@ -12,41 +12,62 @@ export default function SellerOrdersPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // Static mock data for orders
+  const staticOrders = [
+    {
+      id: 'ORD001',
+      products: [
+        { name: 'Potato', quantity: 2, price: 50, productId: 'p1', unit: 'kg' },
+        { name: 'Dal', quantity: 1, price: 100, productId: 'p2', unit: 'kg' }
+      ],
+      totalPrice: 200,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendorLocation: '17.596353158119673, 78.48444423944554',
+      vendorPhone: '1234567890',
+      supplierId: 'seller123'
+    },
+    {
+      id: 'ORD002',
+      products: [
+        { name: 'Pav', quantity: 100, price: 200, productId: 'p3', unit: 'pcs' }
+      ],
+      totalPrice: 200,
+      status: 'accepted',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendorLocation: '17.596353158119673, 78.48444423944554',
+      vendorPhone: '1234567890',
+      supplierId: 'seller123'
+    },
+    {
+      id: 'ORD003',
+      products: [
+        { name: 'Potato', quantity: 2, price: 50, productId: 'p1', unit: 'kg' },
+        { name: 'Dal', quantity: 1, price: 100, productId: 'p2', unit: 'kg' },
+        { name: 'Pav', quantity: 100, price: 200, productId: 'p3', unit: 'pcs' }
+      ],
+      totalPrice: 350,
+      status: 'completed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendorLocation: '17.596353158119673, 78.48444423944554',
+      vendorPhone: '1234567890',
+      supplierId: 'seller123'
+    }
+  ]
+
   useEffect(() => {
     if (!isSignedIn) {
       router.push('/')
       return
     }
-    const fetchUserAndOrders = async () => {
-      setLoading(true)
-      try {
-        const userRes = await fetch('/api/user/fetch')
-        const userData = await userRes.json()
-        if (userRes.ok && userData.user) {
-          setUser(userData.user)
-          const ordersRes = await fetch(`/api/orders/fetch?userType=seller&userId=${userData.user.id}`)
-          const ordersData = await ordersRes.json()
-          if (ordersRes.ok) {
-            setOrders((ordersData.orders || []).map((order: any) => ({
-              ...order,
-              id: order._id || order.id,
-              products: order.products || order.items || [],
-              totalPrice: order.totalPrice || order.totalAmount || 0,
-              createdAt: order.createdAt ? new Date(order.createdAt) : undefined,
-              updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined,
-              vendorLocation: typeof order.vendorLocation === 'string' ? order.vendorLocation : order.vendorLocation?.address || '',
-            })))
-          }
-        } else {
-          router.push('/onboarding')
-        }
-      } catch (err) {
-        console.error('Error loading seller orders:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchUserAndOrders()
+    
+    // Mock user data
+    setUser({ id: 'seller123', name: 'Test Seller' })
+    setOrders(staticOrders)
+    setLoading(false)
   }, [isSignedIn, router])
 
   const sellerOrders = orders.filter(o => o.supplierId === user?.id)
@@ -56,20 +77,38 @@ export default function SellerOrdersPage() {
   const rejectedOrders = sellerOrders.filter(o => o.status === 'cancelled' || o.status === 'rejected')
 
   const handleAcceptOrder = (orderId: string) => {
-    // updateOrderStatus(orderId, 'accepted') // This function is removed from useStoree
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === orderId ? { ...order, status: 'accepted' } : order
+      )
+    )
   }
 
   const handleRejectOrder = (orderId: string) => {
-    // updateOrderStatus(orderId, 'cancelled') // This function is removed from useStoree
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === orderId ? { ...order, status: 'rejected' } : order
+      )
+    )
   }
 
   const handleCompleteOrder = (orderId: string) => {
-    // updateOrderStatus(orderId, 'completed') // This function is removed from useStoree
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === orderId ? { ...order, status: 'completed' } : order
+      )
+    )
   }
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
     alert(`${type} copied: ${text}`)
+  }
+
+  const openGoogleMaps = (coordinates: string) => {
+    const [lat, lng] = coordinates.split(', ')
+    const url = `https://www.google.com/maps?q=${lat},${lng}`
+    window.open(url, '_blank')
   }
 
   const getStatusColor = (status: string) => {
@@ -94,7 +133,7 @@ export default function SellerOrdersPage() {
     }
   }
 
-  if (!isSignedIn) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
@@ -106,6 +145,13 @@ export default function SellerOrdersPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </button>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Seller Orders</h1>
           <p className="text-gray-600">Manage your incoming orders and customer information</p>
         </div>
@@ -183,7 +229,7 @@ export default function SellerOrdersPage() {
                         </div>
                         
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          Order #{order.id.slice(-6).toUpperCase()}
+                          Order #{order.id}
                         </h3>
                         
                         <div className="space-y-3">
@@ -191,8 +237,10 @@ export default function SellerOrdersPage() {
                             <h4 className="text-sm font-medium text-gray-700 mb-1">Items:</h4>
                             <div className="space-y-1">
                               {order.products.map((item: any, idx: number) => (
-                                <div key={item.productId ? `${item.productId}-${idx}` : idx} className="flex justify-between text-sm">
-                                  <span className="text-gray-600">{item.name} × {item.quantity}</span>
+                                <div key={`${item.productId}-${idx}`} className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                    {item.name} ({item.quantity}{item.unit})
+                                  </span>
                                   <span className="font-medium">₹{item.price * item.quantity}</span>
                                 </div>
                               ))}
@@ -207,10 +255,25 @@ export default function SellerOrdersPage() {
                           
                           <div>
                             <h4 className="text-sm font-medium text-gray-700 mb-1">Delivery Location:</h4>
-                            <p className="text-sm text-gray-600 flex items-center">
-                              <MapPin className="h-4 w-4 mr-1" />
-                              {order.vendorLocation}
-                            </p>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded flex-1">
+                                {order.vendorLocation}
+                              </span>
+                              <button
+                                onClick={() => copyToClipboard(order.vendorLocation, 'Location')}
+                                className="text-blue-600 hover:text-blue-700 p-1"
+                                title="Copy coordinates"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => openGoogleMaps(order.vendorLocation)}
+                              className="mt-2 flex items-center space-x-1 text-green-600 hover:text-green-700 text-sm"
+                            >
+                              <Map className="h-4 w-4" />
+                              <span>Open in Google Maps</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -258,7 +321,7 @@ export default function SellerOrdersPage() {
                         </div>
                         
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          Order #{order.id.slice(-6).toUpperCase()}
+                          Order #{order.id}
                         </h3>
                         
                         <div className="space-y-3">
@@ -266,8 +329,10 @@ export default function SellerOrdersPage() {
                             <h4 className="text-sm font-medium text-gray-700 mb-1">Items:</h4>
                             <div className="space-y-1">
                               {order.products.map((item: any, idx: number) => (
-                                <div key={item.productId ? `${item.productId}-${idx}` : idx} className="flex justify-between text-sm">
-                                  <span className="text-gray-600">{item.name} × {item.quantity}</span>
+                                <div key={`${item.productId}-${idx}`} className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                    {item.name} ({item.quantity}{item.unit})
+                                  </span>
                                   <span className="font-medium">₹{item.price * item.quantity}</span>
                                 </div>
                               ))}
@@ -308,6 +373,13 @@ export default function SellerOrdersPage() {
                                     <Copy className="h-4 w-4" />
                                   </button>
                                 </div>
+                                <button
+                                  onClick={() => openGoogleMaps(order.vendorLocation)}
+                                  className="mt-2 flex items-center space-x-1 text-green-600 hover:text-green-700 text-sm"
+                                >
+                                  <Map className="h-4 w-4" />
+                                  <span>Open in Google Maps</span>
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -330,7 +402,82 @@ export default function SellerOrdersPage() {
             </div>
           )}
 
-          {/* No Orders */}
+          {/* Completed Orders */}
+          {completedOrders.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="text-xl font-semibold text-gray-900">Completed Orders</h2>
+                <p className="text-sm text-gray-600">Successfully delivered orders</p>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {completedOrders.map((order) => (
+                  <div key={order.id} className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            <span className="ml-1 capitalize">{order.status}</span>
+                          </span>
+                        </div>
+                        
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          Order #{order.id}
+                        </h3>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-1">Items:</h4>
+                            <div className="space-y-1">
+                              {order.products.map((item: any, idx: number) => (
+                                <div key={`${item.productId}-${idx}`} className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                    {item.name} ({item.quantity}{item.unit})
+                                  </span>
+                                  <span className="font-medium">₹{item.price * item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="border-t mt-2 pt-2">
+                              <div className="flex justify-between font-semibold">
+                                <span>Total:</span>
+                                <span>₹{order.totalPrice}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-1">Delivery Location:</h4>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded flex-1">
+                                {order.vendorLocation}
+                              </span>
+                              <button
+                                onClick={() => copyToClipboard(order.vendorLocation, 'Location')}
+                                className="text-blue-600 hover:text-blue-700 p-1"
+                                title="Copy coordinates"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => openGoogleMaps(order.vendorLocation)}
+                              className="mt-2 flex items-center space-x-1 text-green-600 hover:text-green-700 text-sm"
+                            >
+                              <Map className="h-4 w-4" />
+                              <span>Open in Google Maps</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Orders Fallback (won't show since we have static data) */}
           {sellerOrders.length === 0 && (
             <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />

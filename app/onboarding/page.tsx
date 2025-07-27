@@ -258,7 +258,7 @@ export default function OnboardingPage() {
                       fullName: e.target.value,
                     }))
                   }
-                  className="input-field"
+                  className="input-field dark:text-gray-200"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
                       phoneNumber: e.target.value,
                     }))
                   }
-                  className="input-field"
+                  className="input-field dark:text-gray-200"
                   placeholder="+91 9876543210"
                 />
               </div>
@@ -328,7 +328,7 @@ export default function OnboardingPage() {
                       storeName: e.target.value,
                     }))
                   }
-                  className="input-field"
+                  className="input-field dark:text-gray-200"
                   placeholder="e.g., Sharma General Store"
                 />
               </div>

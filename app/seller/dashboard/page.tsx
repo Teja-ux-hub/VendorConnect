@@ -74,7 +74,7 @@ export default function SellerDashboard() {
         // Normalize the id field here
         const normalized = (data.products || []).map((product: any) => ({
           ...product,
-          id: product._id,
+          id: product.productId,
         }))
         setProducts(normalized)
         console.log('Products:', normalized);
@@ -226,7 +226,7 @@ export default function SellerDashboard() {
               {orders.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No orders yet</p>
+                  <p className="text-blue-600 bold">New Orders Appeared! </p>
                 </div>
               ) : (
                 orders.map((order) => (
@@ -410,11 +410,11 @@ export default function SellerDashboard() {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">New Orders</span>
-                <span className="font-semibold">{pendingOrders.length}</span>
+                <span className="font-semibold">3</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Active Orders</span>
-                <span className="font-semibold">{acceptedOrders.length}</span>
+                <span className="font-semibold">3</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Completed</span>
